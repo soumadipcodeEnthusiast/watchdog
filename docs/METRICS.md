@@ -22,6 +22,14 @@ See [FRESHNESS.md](FRESHNESS.md) for the normative client contract. A recent Pro
 
 Clients define the current-value window as `clamp(3 * interval, 60, 300)` seconds and require the completion timestamp to be within that window. `up == 1` without a recent completion means the metrics HTTP endpoint is reachable while collection is stalled.
 
+## 0.1. Configured Server Identity
+
+| Metric Name | Type | Labels | Unit | Description |
+| --- | --- | --- | --- | --- |
+| `watchdog_server_info` | Gauge | `server_url`, `service_slug`, `environment`, `organization` | presence | Configuration-source identity for a monitored server. The value is always `1`; labels are emitted only when all identity fields are configured. |
+
+`service_slug` is a short, machine-readable identifier for the monitored service, supplied by the source of Watchdog's configuration. For example, `metro-transit-api` could identify a transit service. Watchdog treats the value as opaque: it does not parse it or depend on a particular hosting platform's naming rules. `environment` and `organization` are also supplied metadata. Existing configurations may omit all three fields; Watchdog continues monitoring those servers and simply omits their `watchdog_server_info` series.
+
 ---
 
 ## 1. API Availability
@@ -111,7 +119,7 @@ Clients define the current-value window as `clamp(3 * interval, 60, 300)` second
 | `realtime_vehicle_positions_count_gtfs_rt` | Gauge   | `agency_id`, `agency_name`, `server_name`, `server_url`           | count         | Number of realtime vehicle positions in the GTFS-RT feeds. Each feed is an independent vehicle namespace, so the same vehicle ID in two feeds counts twice (two distinct physical vehicles). |
 | `gtfs_schedule_available` | Gauge | `agency_id`, `agency_name`, `server_name`, `server_url` | boolean | `1` only when every configured static feed in the latest refresh downloaded, parsed, and passed the strict compact-schedule compiler. `0` means schedule state is absent, stale after a failed refresh, incomplete, or invalid. |
 | `gtfs_scheduled_service_active` | Gauge | `agency_id`, `agency_name`, `server_name`, `server_url` | boolean | `1` when at least one valid trip or frequency window is active at collection time. This value is meaningful only while `gtfs_schedule_available == 1`; unavailable schedules emit `0` rather than asserting either active or outside-service state. |
-| `gtfs_rt_last_successful_fetch_timestamp_seconds` | Gauge | `server_name`, `server_url` | unix_timestamp | When Watchdog last successfully fetched and parsed all configured vehicle-position feeds for the server. This is Watchdog collection time, not the feeds' source-data timestamp. Use it to gate current-state feed metrics; Prometheus sample timestamps only prove Watchdog was scraped. |
+| `gtfs_rt_last_successful_fetch_timestamp_seconds` | Gauge | `agency_id`, `agency_name`, `server_name`, `server_url` | unix_timestamp | When Watchdog last successfully fetched and parsed all configured vehicle-position feeds for the server/agency scope. In server scope, `agency_id` and `agency_name` are empty. The metric is omitted when no GTFS-RT feeds are configured. This is Watchdog collection time, not the feeds' source-data timestamp. Use it to gate current-state feed metrics; Prometheus sample timestamps only prove Watchdog was scraped. |
 | `gtfs_rt_feed_fetch_success` | Gauge | `agency_id`, `agency_name`, `server_name`, `server_url`, `feed`, `feed_url` | boolean | Whether the latest fetch and parse of this configured feed succeeded. `feed` is its stable zero-based config index and `feed_url` is sanitized. |
 | `gtfs_rt_feed_last_successful_fetch_timestamp_seconds` | Gauge | same feed labels | unix_timestamp | Watchdog time of the latest successful fetch and parse. |
 | `gtfs_rt_feed_source_timestamp_seconds` | Gauge | same feed labels | unix_timestamp | Optional source time from `FeedHeader.timestamp`. Absent when the header has no timestamp and removed after a failed fetch. |
